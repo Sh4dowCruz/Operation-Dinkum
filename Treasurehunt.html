@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Syndicate Node // Cognitive Harvest</title>
+
+<style>
+:root{
+  --bg:#0b0e11; --panel:#020617; --border:#1f2937;
+  --text:#d1d5db; --muted:#9ca3af; --accent:#22d3ee;
+  --danger:#f87171; --ok:#34d399;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:20px;
+  background:var(--bg); color:var(--text);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.layout{
+  display:grid;
+  grid-template-columns: 320px 1fr;
+  gap:18px;
+  max-width:1400px;
+  margin:auto;
+}
+.card{
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:14px;
+  padding:16px;
+}
+h1,h2,h3{margin:0 0 10px 0; color:var(--accent)}
+.small{color:var(--muted); font-size:.85rem}
+
+/* Professor panel */
+.prof-img{
+  width:100%;
+  max-width: 280px;
+  display:block;
+  margin: 8px auto 12px auto;
+  border-radius:12px;
+  border:1px solid var(--border);
+}
+
+.badge{
+  display:inline-block; padding:4px 10px;
+  border-radius:999px; border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+  color:var(--muted); font-size:.8rem;
+}
+.kv{margin:8px 0}
+.kv .k{color:var(--muted)}
+.kv .v{color:#e5e7eb}
+
+/* Right side */
+.right{
+  display:grid;
+  grid-template-rows:auto auto;
+  gap:18px;
+}
+
+.spicy{ line-height:1.35rem; }
+.spicy .label{color:var(--muted)}
+.spicy .value{color:#e5e7eb}
+
+/* Archived list */
+.archived{
+  display:grid;
+  grid-template-columns: 260px 1fr;
+  gap:0;
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+}
+.archived-left{
+  background:rgba(255,255,255,.02);
+  border-right:1px solid var(--border);
+}
+.archived-left h3{padding:12px}
+.student{
+  display:flex; gap:10px;
+  padding:10px 12px;
+  border-top:1px solid var(--border);
+  cursor:pointer;
+}
+.student:hover{background:rgba(255,255,255,.04)}
+.avatar{
+  width:44px; height:44px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  flex:0 0 auto;
+}
+.student .name{font-weight:700}
+.archived-right{
+  padding:14px;
+  overflow:auto;
+}
+
+/* tables */
+.table{
+  width:100%;
+  border-collapse:collapse;
+}
+.table th,.table td{
+  border-bottom:1px solid var(--border);
+  padding:10px;
+  text-align:left;
+  white-space:normal;
+  word-break:break-word;
+}
+.table th{color:var(--muted); background:rgba(255,255,255,.02)}
+
+/* keep first column labels tidy in detail table */
+#detailTable th{white-space:nowrap;}
+
+.download{
+  border:1px solid var(--border);
+  background:#062a2f;
+  color:#e5e7eb;
+  padding:10px 12px;
+  border-radius:12px;
+  cursor:pointer;
+}
+
+.archive-chip{
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  padding:6px 10px;
+  border-radius:999px;
+  cursor:pointer;
+  font:inherit;
+  font-size:.82rem;
+}
+
+/* Fancy variant (override base) */
+.archive-chip.fancy{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+
+  border:1px solid rgba(34,211,238,.45) !important;
+  color:var(--accent) !important;
+
+  background: linear-gradient(180deg, rgba(34,211,238,.14), rgba(34,211,238,.04)) !important;
+
+  box-shadow:
+    0 0 0 1px rgba(34,211,238,.12) inset,
+    0 10px 24px rgba(0,0,0,.35),
+    0 0 18px rgba(34,211,238,.12);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.archive-chip.fancy .dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 10px rgba(34,211,238,.75);
+}
+
+.archive-chip.fancy:hover{
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(34,211,238,.18) inset,
+    0 14px 28px rgba(0,0,0,.45),
+    0 0 26px rgba(34,211,238,.18);
+  background: linear-gradient(180deg, rgba(34,211,238,.20), rgba(34,211,238,.05)) !important;
+}
+
+/* MODAL */
+.modal{
+  position:fixed; inset:0;
+  display:none;
+  z-index:9999;
+  padding:18px;
+}
+.modal[aria-hidden="false"]{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.modal-backdrop{
+  position:absolute; inset:0;
+  background:rgba(0,0,0,.6);
+  backdrop-filter: blur(4px);
+}
+.modal-dialog{
+  position:relative;
+  width:min(980px, calc(100% - 36px));
+  max-height: min(720px, calc(100vh - 36px));
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  margin:0;
+}
+.modal-header{
+  padding:12px 14px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.02);
+}
+.modal-close{
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+  color:#e5e7eb;
+  width:40px; height:40px;
+  border-radius:12px;
+  cursor:pointer;
+  font:inherit;
+  line-height:1;
+}
+.modal-body{
+  flex:1 1 auto;
+  overflow:auto;
+}
+</style>
+</head>
+
+<body>
+<div class="layout">
+  <!-- LEFT -->
+  <div class="card">
+    <h2>Active Subject</h2>
+    <img class="prof-img" src="Prof.png" alt="Professor" loading="lazy"/>
+
+    <div style="text-align:center; margin-top:6px; font-weight:700;">
+      Dr. Thomas Caldwell
+    </div>
+
+    <div class="small" style="text-align:center; margin-top:6px; color:var(--danger);">
+      ● Live Subject — Presumed Deceased
+    </div>
+
+    <div class="kv"><span class="k">Designation:</span> <span class="v">Lead Engineering Professor</span></div>
+    <div class="kv"><span class="k">Status:</span> <span class="v">Neural Harvest — LIVE</span></div>
+    <div class="kv"><span class="k">Primary Node:</span> <span class="v">ORACLE-9</span></div>
+    <div class="kv"><span class="k">Efficiency:</span> <span class="v">97.1%</span></div>
+
+    <div style="margin-top:10px">
+      <span class="badge">memory-locked</span>
+      <span class="badge">continuous extraction</span>
+      <span class="badge">blacksite A-7</span>
+    </div>
+
+    <div class="small" style="margin-top:12px">
+      Subject retained at minimal consciousness threshold. Emotional centers suppressed.
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="card spicy">
+      <h2>Operational Purpose</h2>
+
+      <div class="label">Asset Classification</div>
+      <div class="value">
+        The subject is a retained cognitive authority, forcibly integrated to sustain and optimize the power grid.
+      </div>
+      <br/>
+
+      <div class="label">Strategic Role</div>
+      <div class="value">
+        Leveraged for deep-pattern reasoning, anomaly resolution, and theoretical breakthroughs unattainable through artificial systems alone.
+      </div>
+      <br/>
+
+      <div class="label">Containment Rationale</div>
+      <div class="value">
+        Subject termination is prohibited. Loss of the subject results in systemic collapse and exposure of prior student disappearances.
+      </div>
+    </div>
+
+    <div class="card spicy">
+      <h2>Live Telemetry</h2>
+
+      <div class="label">Cortical Load</div>
+      <div class="value"><span id="corticalLoad">82</span>% (stable)</div>
+      <br/>
+
+      <div class="label">Signal Integrity</div>
+      <div class="value"><span id="signalIntegrity">92</span>% (minor jitter)</div>
+      <br/>
+
+      <div class="label">Anomaly Flag</div>
+      <div class="value"><span id="anomalyFlag">LOW</span> — dreamloop artifacts detected</div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+        <button id="toggleArchive" type="button" class="archive-chip fancy">
+          <span class="dot"></span>
+          Archived assets
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="archiveModal" aria-hidden="true">
+  <div class="modal-backdrop" data-close="archive"></div>
+
+  <div class="modal-dialog" role="dialog" aria-modal="true" aria-label="Archived Assets">
+    <div class="modal-header">
+      <div>
+        <h2 style="margin:0;">Archived Assets</h2>
+        <div class="small">Recovered records. Export available.</div>
+      </div>
+      <button class="modal-close" type="button" id="closeArchive" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="archived" style="border:none; border-radius:12px;">
+        <div class="archived-left">
+          <h3>Archived Students</h3>
+
+          <div class="student" data-asset="HB-31">
+            <img class="avatar" alt="A" src="data:image/svg+xml;utf8,
+              <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>
+                <rect width='100%' height='100%' rx='16' fill='%230b1220'/>
+                <text x='40' y='52' text-anchor='middle' font-size='30' fill='%23e5e7eb' font-family='monospace'>A</text>
+              </svg>"/>
+            <div>
+              <div class="name">A. Mercer</div>
+              <div class="small">HB-31</div>
+            </div>
+          </div>
+
+          <div class="student" data-asset="HB-18">
+            <img class="avatar" alt="T" src="data:image/svg+xml;utf8,
+              <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>
+                <rect width='100%' height='100%' rx='16' fill='%230b1220'/>
+                <text x='40' y='52' text-anchor='middle' font-size='30' fill='%23e5e7eb' font-family='monospace'>T</text>
+              </svg>"/>
+            <div>
+              <div class="name">T. Nguyen</div>
+              <div class="small">HB-18</div>
+            </div>
+          </div>
+
+          <div class="student" data-asset="HB-09">
+            <img class="avatar" alt="J" src="data:image/svg+xml;utf8,
+              <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>
+                <rect width='100%' height='100%' rx='16' fill='%230b1220'/>
+                <text x='40' y='52' text-anchor='middle' font-size='30' fill='%23e5e7eb' font-family='monospace'>J</text>
+              </svg>"/>
+            <div>
+              <div class="name">J. Calder</div>
+              <div class="small">HB-09</div>
+            </div>
+          </div>
+
+          <div class="student" data-asset="HB-22">
+            <img class="avatar" alt="R" src="data:image/svg+xml;utf8,
+              <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>
+                <rect width='100%' height='100%' rx='16' fill='%230b1220'/>
+                <text x='40' y='52' text-anchor='middle' font-size='30' fill='%23e5e7eb' font-family='monospace'>R</text>
+              </svg>"/>
+            <div>
+              <div class="name">R. Iyer</div>
+              <div class="small">HB-22</div>
+            </div>
+          </div>
+
+          <div class="student" data-asset="HB-41">
+            <img class="avatar" alt="M" src="data:image/svg+xml;utf8,
+              <svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>
+                <rect width='100%' height='100%' rx='16' fill='%230b1220'/>
+                <text x='40' y='52' text-anchor='middle' font-size='30' fill='%23e5e7eb' font-family='monospace'>M</text>
+              </svg>"/>
+            <div>
+              <div class="name">M. Alvarez</div>
+              <div class="small">HB-41</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="archived-right">
+          <h3 id="detailTitle">Archived Asset Details</h3>
+
+          <!-- Details view -->
+          <table class="table" id="detailTable">
+            <tbody>
+              <tr><th style="width:160px;">Subject</th><td id="dSubject">A. Mercer</td></tr>
+              <tr><th>Asset ID</th><td id="dAssetId">HB-31-CORTEX</td></tr>
+              <tr><th>Node</th><td id="dNode">ORACLE-7</td></tr>
+              <tr><th>Status</th><td id="dStatus">DECOMMISSIONED</td></tr>
+              <tr><th>Duration</th><td id="dDuration">214 days</td></tr>
+              <tr><th>Notes</th><td id="dNotes">Pattern drift exceeded safe margins</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Full table (hidden) used ONLY for CSV export -->
+          <table class="table" id="archiveTable" style="display:none;">
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Asset ID</th>
+                <th>Node</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A. Mercer</td>
+                <td>HB-31-CORTEX</td>
+                <td>ORACLE-7</td>
+                <td>DECOMMISSIONED</td>
+                <td>214 days</td>
+                <td>Pattern drift exceeded safe margins</td>
+              </tr>
+              <tr>
+                <td>T. Nguyen</td>
+                <td>HB-18-SYNAPSE</td>
+                <td>ORACLE-6</td>
+                <td>TRANSFERRED</td>
+                <td>167 days</td>
+                <td>Cold-storage inference lattice</td>
+              </tr>
+              <tr>
+                <td>J. Calder</td>
+                <td>HB-09-MNEMONIC</td>
+                <td>ORACLE-5</td>
+                <td>DECOMMISSIONED</td>
+                <td>301 days</td>
+                <td>Severe identity collapse</td>
+              </tr>
+              <tr>
+                <td>R. Iyer</td>
+                <td>HB-22-COGNITIVE</td>
+                <td>ORACLE-4</td>
+                <td>TRANSFERRED</td>
+                <td>189 days</td>
+                <td>Cross-domain abstraction instability</td>
+              </tr>
+              <tr>
+                <td>M. Alvarez</td>
+                <td>HB-41-PREDICTIVE</td>
+                <td>ORACLE-3</td>
+                <td>DECOMMISSIONED</td>
+                <td>256 days</td>
+                <td>Recursive forecasting saturation</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
+            <button class="download" type="button" id="downloadArchive">Download archived assets (CSV)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Modal open/close */
+(function(){
+  const openBtn = document.getElementById('toggleArchive');
+  const modal = document.getElementById('archiveModal');
+  const closeBtn = document.getElementById('closeArchive');
+
+  function openModal(){
+    if(!modal) return;
+    modal.setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    if(!modal) return;
+    modal.setAttribute('aria-hidden','true');
+    document.body.style.overflow = '';
+  }
+
+  if(openBtn) openBtn.addEventListener('click', openModal);
+  if(closeBtn) closeBtn.addEventListener('click', closeModal);
+
+  if(modal){
+    modal.addEventListener('click', (e) => {
+      const t = e.target;
+      if(t && t.getAttribute && t.getAttribute('data-close') === 'archive') closeModal();
+    });
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && modal && modal.getAttribute('aria-hidden') === 'false'){
+      closeModal();
+    }
+  });
+})();
+
+/* Download CSV */
+(function(){
+  const btn = document.getElementById('downloadArchive');
+  const table = document.getElementById('archiveTable');
+  if(!btn || !table) return;
+
+  function tableToCSV(tbl){
+    const rows = Array.from(tbl.querySelectorAll('tr'));
+    return rows.map(row => {
+      const cells = Array.from(row.querySelectorAll('th,td'));
+      return cells.map(c => {
+        const text = (c.textContent || '').replace(/\s+/g,' ').trim();
+        const escaped = text.replace(/"/g,'""');
+        return `"${escaped}"`;
+      }).join(',');
+    }).join('\n');
+  }
+
+  btn.addEventListener('click', () => {
+    const csv = tableToCSV(table);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'archived_assets.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  });
+})();
+
+/* Live telemetry fluctuation */
+(function(){
+  const loadEl = document.getElementById('corticalLoad');
+  const signalEl = document.getElementById('signalIntegrity');
+  const flagEl = document.getElementById('anomalyFlag');
+
+  const loadSequence = [82,81,80,82,84,83,82,81,82,84];
+  const signalSequence = [92,90,92,93,90,91,92,93,90,92];
+
+  let i = 0;
+  setInterval(() => {
+    const load = loadSequence[i % loadSequence.length];
+    const sig = signalSequence[i % signalSequence.length];
+
+    if(loadEl) loadEl.textContent = String(load);
+    if(signalEl) signalEl.textContent = String(sig);
+
+    let flag = 'LOW';
+    if(load >= 84 || sig <= 90) flag = 'MED';
+    if(load >= 86 || sig <= 88) flag = 'HIGH';
+    if(flagEl) flagEl.textContent = flag;
+
+    i++;
+  }, 1400);
+})();
+</script>
+
+<script>
+/* Archived student click -> details */
+(function(){
+  const students = Array.from(document.querySelectorAll('.student[data-asset]'));
+  if(!students.length) return;
+
+  const db = {
+    "HB-31": { subject:"A. Mercer", assetId:"HB-31-CORTEX", node:"ORACLE-7", status:"DECOMMISSIONED", duration:"214 days", notes:"Pattern drift exceeded safe margins" },
+    "HB-18": { subject:"T. Nguyen", assetId:"HB-18-SYNAPSE", node:"ORACLE-6", status:"TRANSFERRED", duration:"167 days", notes:"Cold-storage inference lattice" },
+    "HB-09": { subject:"J. Calder", assetId:"HB-09-MNEMONIC", node:"ORACLE-5", status:"DECOMMISSIONED", duration:"301 days", notes:"Severe identity collapse" },
+    "HB-22": { subject:"R. Iyer", assetId:"HB-22-COGNITIVE", node:"ORACLE-4", status:"TRANSFERRED", duration:"189 days", notes:"Cross-domain abstraction instability" },
+    "HB-41": { subject:"M. Alvarez", assetId:"HB-41-PREDICTIVE", node:"ORACLE-3", status:"DECOMMISSIONED", duration:"256 days", notes:"Recursive forecasting saturation" }
+  };
+
+  const el = (id) => document.getElementById(id);
+
+  function setActive(card){
+    students.forEach(s => s.style.background = 'transparent');
+    card.style.background = 'rgba(255,255,255,.04)';
+  }
+
+  function render(assetKey){
+    const d = db[assetKey];
+    if(!d) return;
+    el('dSubject').textContent = d.subject;
+    el('dAssetId').textContent = d.assetId;
+    el('dNode').textContent = d.node;
+    el('dStatus').textContent = d.status;
+    el('dDuration').textContent = d.duration;
+    el('dNotes').textContent = d.notes;
+  }
+
+  students.forEach(s => {
+    s.addEventListener('click', () => {
+      setActive(s);
+      render(s.getAttribute('data-asset'));
+    });
+  });
+
+  setActive(students[0]);
+  render(students[0].getAttribute('data-asset'));
+})();
+</script>
+
+</body>
+</html>
